@@ -1,11 +1,7 @@
 pipeline {
     agent any
     
-    environment {
-        GCP_PROJECT_ID = 'gcp-splunk-automation'
-        GCP_REGION = 'us-central1'
-        GCP_KEY_JSON = credentials('gcp-service-account-json')
-    }
+  
     
     stages {
         stage('Checkout') {
