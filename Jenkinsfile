@@ -1,33 +1,78 @@
 pipeline {
     agent any
-    options {
-        buildDiscarder(logRotator(numToKeepStr: '10'))
-        timeout(time: 1, unit: 'HOURS')
-        timestamps()
-    }
+    
     environment {
-        TERRAFORM_VERSION = '1.5.0'
+        GCP_PROJECT_ID = 'gcp-splunk-automation'
+        GCP_REGION = 'us-central1'
+        GCP_KEY_JSON = credentials('gcp-service-account-json')
     }
+    
     stages {
         stage('Checkout') {
             steps {
-                echo "Checking out repositories..."
+                checkout scm
+                sh 'echo "Repository cloned successfully"'
             }
         }
-        stage('Validate') {
+        
+        stage('Terraform Init') {
             steps {
-                echo "Validating Terraform..."
+                sh '''
+                    echo "Initializing Terraform..."
+                    terraform init
+                '''
             }
         }
-        stage('Plan') {
+        
+        stage('Terraform Validate') {
             steps {
-                echo "Planning Terraform changes..."
+                sh '''
+                    echo "Validating Terraform code..."
+                    terraform validate
+                '''
             }
         }
-        stage('Apply') {
+        
+        stage('Terraform Plan') {
             steps {
-                echo "Applying Terraform..."
+                sh '''
+                    echo "Planning Terraform deployment..."
+                    echo $GCP_KEY_JSON > /tmp/gcp-key.json
+                    gcloud auth activate-service-account --key-file=/tmp/gcp-key.json
+                    gcloud config set project ${GCP_PROJECT_ID}
+                    
+                    terraform plan \
+                        -var="gcp_project_id=${GCP_PROJECT_ID}" \
+                        -var="gcp_region=${GCP_REGION}" \
+                        -var="environment=dev" \
+                        -var="num_instances=1" \
+                        -out=tfplan
+                '''
             }
+        }
+        
+        stage('Terraform Apply') {
+            steps {
+                input message: 'Apply Terraform changes to GCP?', ok: 'Deploy'
+                sh '''
+                    echo "Applying Terraform..."
+                    terraform apply -auto-approve tfplan
+                    terraform output
+                '''
+            }
+        }
+    }
+    
+    post {
+        always {
+            sh 'rm -f /tmp/gcp-key.json'
+            cleanWs()
+        }
+        success {
+            echo "✅ Pipeline executed successfully!"
+        }
+        failure {
+            echo "❌ Pipeline failed!"
         }
     }
 }
