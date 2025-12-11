@@ -1,7 +1,11 @@
 pipeline {
     agent any
     
-  
+  environment {
+        GCP_PROJECT_ID = 'pioneering-axe-473420-p5'
+        GCP_REGION = 'us-central1'
+        GCP_KEY_JSON = credentials('gcp-service-account-json')
+    }
     
     stages {
         stage('Checkout') {
