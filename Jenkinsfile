@@ -61,11 +61,16 @@ pipeline {
                 '''
             }
         }
+        
+        stage('Cleanup') {
+            steps {
+                sh 'rm -f /tmp/gcp-key.json'
+            }
+        }
     }
     
     post {
         always {
-            sh 'rm -f /tmp/gcp-key.json'
             cleanWs()
         }
         success {
